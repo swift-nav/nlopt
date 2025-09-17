@@ -1,41 +1,263 @@
-# Copyright (C) 2025 Swift Navigation Inc.
-# Contact: Swift Navigation <dev@swift-nav.com>
-#
-# This source is subject to the license found in the file 'LICENSE' which must
-# be be distributed together with this source. All other rights reserved.
-#
-# THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND,
-# EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED
-# WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
+load("@rules_cc//cc:defs.bzl", "cc_library")
 
-load("@rules_foreign_cc//foreign_cc:defs.bzl", "cmake")
+package(default_visibility = ["//visibility:public"])
 
-package(
-    default_visibility = ["//visibility:public"],
+# Generate nlopt_config.h
+genrule(
+    name = "nlopt_config_h",
+    srcs = ["nlopt_config.h.in"],
+    outs = ["nlopt_config.h"],
+    cmd = """
+    sed -e 's/#cmakedefine HAVE_DLFCN_H/#define HAVE_DLFCN_H 1/' \
+        -e 's/#cmakedefine HAVE_GETOPT_H/#define HAVE_GETOPT_H 1/' \
+        -e 's/#cmakedefine HAVE_UNISTD_H/#define HAVE_UNISTD_H 1/' \
+        -e 's/#cmakedefine HAVE_STRING_H/#define HAVE_STRING_H 1/' \
+        -e 's/#cmakedefine HAVE_STRINGS_H/#define HAVE_STRINGS_H 1/' \
+        -e 's/#cmakedefine HAVE_INTTYPES_H/#define HAVE_INTTYPES_H 1/' \
+        -e 's/#cmakedefine HAVE_MEMORY_H/#define HAVE_MEMORY_H 1/' \
+        -e 's/#cmakedefine HAVE_STDLIB_H/#define HAVE_STDLIB_H 1/' \
+        -e 's/#cmakedefine HAVE_STDINT_H/#define HAVE_STDINT_H 1/' \
+        -e 's/#cmakedefine HAVE_TIME_H/#define HAVE_TIME_H 1/' \
+        -e 's/#cmakedefine HAVE_SYS_TYPES_H/#define HAVE_SYS_TYPES_H 1/' \
+        -e 's/#cmakedefine HAVE_SYS_STAT_H/#define HAVE_SYS_STAT_H 1/' \
+        -e 's/#cmakedefine HAVE_SYS_TIME_H/#define HAVE_SYS_TIME_H 1/' \
+        -e 's/#cmakedefine TIME_WITH_SYS_TIME/#define TIME_WITH_SYS_TIME 1/' \
+        -e 's/#cmakedefine HAVE_GETPID/#define HAVE_GETPID 1/' \
+        -e 's/#cmakedefine HAVE_GETTID_SYSCALL/#define HAVE_GETTID_SYSCALL 1/' \
+        -e 's/#cmakedefine HAVE_ISINF/#define HAVE_ISINF 1/' \
+        -e 's/#cmakedefine HAVE_ISNAN/#define HAVE_ISNAN 1/' \
+        -e 's/#cmakedefine HAVE_GETTIMEOFDAY/#define HAVE_GETTIMEOFDAY 1/' \
+        -e 's/#cmakedefine HAVE_QSORT_R/#define HAVE_QSORT_R 1/' \
+        -e 's/#cmakedefine HAVE_TIME/#define HAVE_TIME 1/' \
+        -e 's/#cmakedefine HAVE_COPYSIGN/#define HAVE_COPYSIGN 1/' \
+        -e 's/#cmakedefine HAVE_UINT32_T/#define HAVE_UINT32_T 1/' \
+        -e 's/#cmakedefine SIZEOF_UNSIGNED_INT 4/#define SIZEOF_UNSIGNED_INT 4/' \
+        -e 's/#cmakedefine SIZEOF_UNSIGNED_LONG 8/#define SIZEOF_UNSIGNED_LONG 8/' \
+        -e 's/#cmakedefine HAVE_FPCLASSIFY/#define HAVE_FPCLASSIFY 1/' \
+        -e 's/#define THREADLOCAL @THREADLOCAL@/#define THREADLOCAL __thread/' \
+        -e 's/#cmakedefine NLOPT_CXX11/#define NLOPT_CXX11 1/' \
+        -e 's/#cmakedefine NLOPT_CXX/#define NLOPT_CXX 1/' \
+        -e 's/@NLOPT_MAJOR_VERSION@/2/' \
+        -e 's/@NLOPT_MINOR_VERSION@/6/' \
+        -e 's/@NLOPT_BUGFIX_VERSION@/1/' \
+        -e 's/@NLOPT_VERSION_STRING@/2.6.1/' \
+        < $< > $@
+    """,
 )
 
-filegroup(
-    name = "srcs",
-    srcs = glob(["**"]),
-)
-
-cmake(
+# Main nlopt library
+cc_library(
     name = "nlopt",
-    cache_entries = {
-        "CMAKE_C_FLAGS": "-fPIC",
-        "CMAKE_INSTALL_LIBDIR": "lib",
-    },
-    generate_args = [
-        "-GNinja",
-        "-DCMAKE_OSX_DEPLOYMENT_TARGET=13.0",
-        "-DBUILD_SHARED_LIBS=OFF",
-        "-DNLOPT_PYTHON=OFF",
-        "-DNLOPT_OCTAVE=OFF",
-        "-DNLOPT_MATLAB=OFF",
-        "-DNLOPT_GUILE=OFF",
-        "-DNLOPT_SWIG=OFF",
+    srcs = [
+        # DIRECT algorithm
+        "src/algs/direct/DIRect.c",
+        "src/algs/direct/direct_wrap.c",
+        "src/algs/direct/DIRserial.c",
+        "src/algs/direct/DIRsubrout.c",
+
+        # CDIRECT algorithm
+        "src/algs/cdirect/cdirect.c",
+        "src/algs/cdirect/hybrid.c",
+
+        # PRAXIS algorithm
+        "src/algs/praxis/praxis.c",
+
+        # Luksan algorithms
+        "src/algs/luksan/plis.c",
+        "src/algs/luksan/plip.c",
+        "src/algs/luksan/pnet.c",
+        "src/algs/luksan/mssubs.c",
+        "src/algs/luksan/pssubs.c",
+
+        # CRS algorithm
+        "src/algs/crs/crs.c",
+
+        # MLSL algorithm
+        "src/algs/mlsl/mlsl.c",
+
+        # MMA algorithm
+        "src/algs/mma/mma.c",
+        "src/algs/mma/ccsa_quadratic.c",
+
+        # COBYLA algorithm
+        "src/algs/cobyla/cobyla.c",
+
+        # NEWUOA algorithm
+        "src/algs/newuoa/newuoa.c",
+
+        # Nelder-Mead algorithm
+        "src/algs/neldermead/nldrmd.c",
+        "src/algs/neldermead/sbplx.c",
+
+        # Augmented Lagrangian algorithm
+        "src/algs/auglag/auglag.c",
+
+        # BOBYQA algorithm
+        "src/algs/bobyqa/bobyqa.c",
+
+        # ISRES algorithm
+        "src/algs/isres/isres.c",
+
+        # SLSQP algorithm
+        "src/algs/slsqp/slsqp.c",
+
+        # ESCH algorithm
+        "src/algs/esch/esch.c",
+
+        # STOGO algorithm (C++ sources)
+        "src/algs/stogo/global.cc",
+        "src/algs/stogo/linalg.cc",
+        "src/algs/stogo/local.cc",
+        "src/algs/stogo/stogo.cc",
+        "src/algs/stogo/tools.cc",
+
+        # AGS algorithm (C++11 sources)
+        "src/algs/ags/evolvent.cc",
+        "src/algs/ags/solver.cc",
+        "src/algs/ags/local_optimizer.cc",
+        "src/algs/ags/ags.cc",
+
+        # API sources
+        "src/api/general.c",
+        "src/api/options.c",
+        "src/api/optimize.c",
+        "src/api/deprecated.c",
+        "src/api/f77api.c",
+
+        # Utility sources
+        "src/util/mt19937ar.c",
+        "src/util/sobolseq.c",
+        "src/util/timer.c",
+        "src/util/stop.c",
+        "src/util/redblack.c",
+        "src/util/qsort_r.c",
+        "src/util/rescale.c",
+    ] + [":nlopt_config_h"],
+    hdrs = [
+        "src/api/nlopt.h",
+        "src/api/nlopt-internal.h",
+        "src/api/nlopt-in.hpp",
+        "src/api/f77funcs.h",
+        "src/api/f77funcs_.h",
+
+        # Algorithm headers
+        "src/algs/direct/direct-internal.h",
+        "src/algs/direct/direct.h",
+        "src/algs/cdirect/cdirect.h",
+        "src/algs/praxis/praxis.h",
+        "src/algs/luksan/luksan.h",
+        "src/algs/crs/crs.h",
+        "src/algs/mlsl/mlsl.h",
+        "src/algs/mma/mma.h",
+        "src/algs/cobyla/cobyla.h",
+        "src/algs/newuoa/newuoa.h",
+        "src/algs/neldermead/neldermead.h",
+        "src/algs/auglag/auglag.h",
+        "src/algs/bobyqa/bobyqa.h",
+        "src/algs/isres/isres.h",
+        "src/algs/slsqp/slsqp.h",
+        "src/algs/esch/esch.h",
+        "src/algs/stogo/global.h",
+        "src/algs/stogo/linalg.h",
+        "src/algs/stogo/local.h",
+        "src/algs/stogo/stogo_config.h",
+        "src/algs/stogo/stogo.h",
+        "src/algs/stogo/tools.h",
+        "src/algs/ags/data_types.hpp",
+        "src/algs/ags/evolvent.hpp",
+        "src/algs/ags/solver.hpp",
+        "src/algs/ags/local_optimizer.hpp",
+        "src/algs/ags/ags.h",
+
+        # Utility headers
+        "src/util/nlopt-util.h",
+        "src/util/soboldata.h",
+        "src/util/redblack.h",
     ],
-    lib_source = ":srcs",
-    out_static_libs = ["libnlopt.a"],
+    includes = [
+        "src/api",
+        "src/util",
+        "src/algs/direct",
+        "src/algs/cdirect",
+        "src/algs/praxis",
+        "src/algs/luksan",
+        "src/algs/crs",
+        "src/algs/mlsl",
+        "src/algs/mma",
+        "src/algs/cobyla",
+        "src/algs/newuoa",
+        "src/algs/neldermead",
+        "src/algs/auglag",
+        "src/algs/bobyqa",
+        "src/algs/isres",
+        "src/algs/slsqp",
+        "src/algs/esch",
+        "src/algs/stogo",
+        "src/algs/ags",
+        ".",
+    ],
+    copts = [
+        "-fPIC",
+    ] + select({
+        "@platforms//os:linux": [
+            "-DHAVE_DLFCN_H=1",
+            "-DHAVE_GETOPT_H=1",
+            "-DHAVE_UNISTD_H=1",
+            "-DHAVE_GETTIMEOFDAY=1",
+            "-DHAVE_QSORT_R=1",
+            "-DHAVE_GETTID_SYSCALL=1",
+        ],
+        "@platforms//os:macos": [
+            "-DHAVE_DLFCN_H=1",
+            "-DHAVE_GETOPT_H=1",
+            "-DHAVE_UNISTD_H=1",
+            "-DHAVE_GETTIMEOFDAY=1",
+        ],
+        "@platforms//os:windows": [
+            "-DNLOPT_DLL",
+            "-DNLOPT_DLL_EXPORT",
+        ],
+        "//conditions:default": [],
+    }),
+    defines = [
+        "HAVE_STRING_H=1",
+        "HAVE_STRINGS_H=1",
+        "HAVE_INTTYPES_H=1",
+        "HAVE_MEMORY_H=1",
+        "HAVE_STDLIB_H=1",
+        "HAVE_STDINT_H=1",
+        "HAVE_TIME_H=1",
+        "HAVE_SYS_TYPES_H=1",
+        "HAVE_SYS_STAT_H=1",
+        "HAVE_SYS_TIME_H=1",
+        "TIME_WITH_SYS_TIME=1",
+        "HAVE_GETPID=1",
+        "HAVE_ISINF=1",
+        "HAVE_ISNAN=1",
+        "HAVE_TIME=1",
+        "HAVE_COPYSIGN=1",
+        "HAVE_UINT32_T=1",
+        "HAVE_FPCLASSIFY=1",
+        "NLOPT_MAJOR_VERSION=2",
+        "NLOPT_MINOR_VERSION=6",
+        "NLOPT_BUGFIX_VERSION=1",
+        "NLOPT_VERSION_STRING=\\\"2.6.1\\\"",
+    ],
+    visibility = ["//visibility:public"],
+    linkstatic = True,
+)
+
+# Header-only targets for convenience
+cc_library(
+    name = "nlopt_c",
+    hdrs = ["src/api/nlopt.h"],
+    deps = [":nlopt"],
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "nlopt_cpp",
+    hdrs = ["src/api/nlopt-in.hpp"],
+    deps = [":nlopt"],
     visibility = ["//visibility:public"],
 )
